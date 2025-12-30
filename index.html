@@ -1,0 +1,200 @@
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Bazaar Aiman | Official Order System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #e65100;
+            --secondary-color: #0288d1;
+            --success-color: #25d366;
+            --bg-color: #f4f7f6;
+        }
+
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); padding: 15px; color: #333; }
+        .container { max-width: 500px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin: auto; }
+        
+        .header-section { text-align: center; margin-bottom: 20px; }
+        .header-section img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary-color); object-fit: cover; }
+        h2 { color: var(--primary-color); margin: 10px 0 0 0; font-weight: 600; }
+        .tagline { font-size: 11px; color: #777; margin-bottom: 20px; }
+
+        label { display: block; margin-top: 15px; font-weight: 600; font-size: 13px; }
+        input, select, textarea { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 14px; font-family: inherit; }
+
+        .menu-item { background: #fffaf0; padding: 15px; border-radius: 12px; border: 1px solid #ffe0b2; margin-top: 15px; position: relative; }
+        .menu-row { display: flex; gap: 10px; margin-bottom: 8px; }
+        .btn-remove { background: #ff5252; color: white; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; float: right; font-size: 11px; }
+
+        .btn-add { background: white; color: var(--primary-color); border: 2px dashed var(--primary-color); padding: 10px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        .loc-btn { background: var(--secondary-color); color: white; border: none; padding: 14px; border-radius: 10px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold; }
+
+        /* BOX HARGA */
+        .total-box { background: #fff8e1; padding: 15px; margin-top: 25px; border-radius: 12px; border: 2px solid #ffe082; }
+        .total-box p { display: flex; justify-content: space-between; margin: 6px 0; font-size: 14px; }
+        .grand-total { font-size: 18px; color: var(--primary-color); font-weight: bold; border-top: 2px solid #ffe082; padding-top: 10px; margin-top: 10px; }
+
+        button#sendWA { width: 100%; background: var(--success-color); color: white; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 20px; cursor: pointer; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-section">
+        <img src="logo.png" alt="A" onerror="this.src='https://static.vecteezy.com/system/resources/previews/005/337/737/original/icon-delivery-silhouette-illustration-free-vector.jpg'">
+        <h2>Runner Bazaar untuk semua</h2>
+        <p class="tagline">Trusted, confirm delivered!</p>
+	
+
+    </div>
+
+    <label>Nama Anda:</label>
+    <input type="text" id="nama" placeholder="Contoh: Aiman">
+
+    <label>Pilih Lokasi Bazaar:</label>
+    <select id="bazaar" onchange="kiraJarak()">
+        <option value="2.735162, 102.234705">Bazaar Kuala Pilah (McD)</option>
+           </select>
+
+    <button class="loc-btn" onclick="getLocation()">📍 Klik Ambil Lokasi Saya</button>
+    <p id="status" style="font-size: 12px; text-align: center; margin-top: 5px;">Jarak belum dikesan...</p>
+    <input type="hidden" id="jarakVal" value="0">
+
+    <hr style="border: 0.5px solid #eee; margin-top: 20px;">
+
+    <label>Senarai Order :</label>
+    <div id="menuContainer"></div>
+    <button class="btn-add" onclick="addItem()">+ Tambah Menu Baru</button>
+
+    <label style="margin-top: 25px;">Anggaran Harga Makanan (RM):</label>
+    <input type="number" id="hargaMakanan" value="0" oninput="updateTotal()">
+
+    <div class="total-box">
+        <p>Jarak: <span><span id="displayJarak">0</span> km</span></p>
+        <p>Upah Runner (Flat Rate): <span>RM 3.00</span></p>
+        <p>Caj Penghantaran: <span>RM <span id="displayDelivery">0.00</span></span></p>
+        <p class="grand-total">Total Wajib Bayar: <span>RM <span id="displayTotal">0.00</span></span></p>
+    </div>
+
+    <button id="sendWA" onclick="hantarWhatsApp()">ORDER SEKARANG VIA WHATSAPP</button>
+</div>
+
+<script>
+    let userLat, userLon;
+    let itemCount = 0;
+
+    function addItem() {
+        itemCount++;
+        const container = document.getElementById('menuContainer');
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.id = 'item-' + itemCount;
+        div.innerHTML = `
+            <button class="btn-remove" onclick="removeItem(${itemCount})">Hapus</button>
+            <div class="menu-row">
+                <input type="text" class="item-name" placeholder="Nama Makanan" required>
+                <input type="number" class="item-qty" value="1" min="1" style="width: 70px;">
+            </div>
+            <input type="text" class="item-backup" placeholder="Item lain jika habis (jika tiada, kosongkan)" style="background: #fff; font-size: 12px; border: 1px dashed #ffb74d;">
+        `;
+        container.appendChild(div);
+        updateTotal();
+    }
+
+    function removeItem(id) {
+        document.getElementById('item-' + id).remove();
+        updateTotal();
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            document.getElementById('status').innerText = "Mencari lokasi...";
+            navigator.geolocation.getCurrentPosition(showPosition);
+        }
+    }
+
+    function showPosition(position) {
+        userLat = position.coords.latitude;
+        userLon = position.coords.longitude;
+        document.getElementById('status').innerText = "📍 Lokasi dikesan!";
+        kiraJarak();
+    }
+
+    function kiraJarak() {
+        if (!userLat || !userLon) return;
+        let bCoords = document.getElementById('bazaar').value.split(',');
+        let bLat = parseFloat(bCoords[0]);
+        let bLon = parseFloat(bCoords[1]);
+
+        const R = 6371; 
+        let dLat = (bLat - userLat) * Math.PI / 180;
+        let dLon = (bLon - userLon) * Math.PI / 180;
+        let a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(userLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        let jarakGenap = Math.round(R * c); 
+        if(jarakGenap < 1) jarakGenap = 1;
+
+        document.getElementById('jarakVal').value = jarakGenap;
+        document.getElementById('displayJarak').innerText = jarakGenap;
+        updateTotal();
+    }
+
+    // LOGIK BARU: UPAH RM3 + DELIVERY (0-3km=RM3, >3km=+RM1/km)
+    function updateTotal() {
+        let jarak = parseFloat(document.getElementById('jarakVal').value) || 0;
+        let hargaMakanan = parseFloat(document.getElementById('hargaMakanan').value) || 0;
+        
+        let upahRunner = 3.00; // Tetap
+        let cajDelivery = 0;
+
+        if (jarak <= 3) {
+            cajDelivery = 3.00;
+        } else {
+            cajDelivery = 3.00 + (jarak - 3);
+        }
+
+        let totalServis = upahRunner + cajDelivery;
+        let grandTotal = totalServis + hargaMakanan;
+
+        document.getElementById('displayDelivery').innerText = cajDelivery.toFixed(2);
+        document.getElementById('displayTotal').innerText = grandTotal.toFixed(2);
+    }
+
+    function hantarWhatsApp() {
+        let nama = document.getElementById('nama').value;
+        let grandTotal = document.getElementById('displayTotal').innerText;
+        let delivery = document.getElementById('displayDelivery').innerText;
+        let items = document.getElementsByClassName('menu-item');
+        
+        if(!nama || items.length === 0) { alert("Sila isi nama & menu!"); return; }
+
+        let listMesej = "";
+        for (let i = 0; i < items.length; i++) {
+            let itemName = items[i].querySelector('.item-name').value;
+            let qty = items[i].querySelector('.item-qty').value;
+            let backup = items[i].querySelector('.item-backup').value;
+            if(itemName) listMesej += `• ${qty}x ${itemName} (Backup: ${backup || 'Tiada'})\n`;
+        }
+
+        let locLink = `https://www.google.com/maps?q=${userLat},${userLon}`;
+        let mesej = `*PESANAN BAZAAR AIMAN*%0A%0A` +
+                    `*Pelanggan:* ${nama}%0A` +
+                    `*Lokasi:* ${locLink}%0A%0A` +
+                    `*ORDER:*%0A${encodeURIComponent(listMesej)}%0A` +
+                    `*Pecahan Caj:*%0A` +
+                    `- Harga Makanan: Ikut Resit%0A` +
+                    `- Upah Runner: RM3.00%0A` +
+                    `- Caj Delivery: RM${delivery}%0A%0A` +
+                    `*ESTIMASI TOTAL: RM${grandTotal}*%0A%0A` +
+                    `_Sila sahkan order saya ya!_`;
+
+        window.open(`https://wa.me/60172865030?text=${mesej}`, '_blank');
+    }
+
+    window.onload = addItem;
+</script>
+
+</body>
+</html>
